@@ -20,9 +20,16 @@ let currentStep = 1;
 const step1 = document.getElementById('step-1');
 const step2 = document.getElementById('step-2');
 
-// Prompts for the AI generation
-const prompts = [
-    `Analyze the topic "{topic}" and create a comprehensive document structure with:
+// Style prompts
+const stylePrompts = {
+    default: "",
+    nytimes: "Write in the style of The New York Times. Use polished, formal language with clear structure and contextual framing. Maintain a measured, authoritative tone and prioritize accuracy and nuance. Provide relevant background information where needed to situate the story within a broader social or historical context. Do not repeat the narrative in subsequent sections.",
+    guardian: "Write in the style of The Guardian. Use a conversational, engaging tone with occasional very light British wit and a progressive perspective. Favor clarity and accessibility over formality, and where appropriate, adopt an advocacy-driven or questioning stance. Avoid excessive institutional voice. Do not repeat the narrative in subsequent sections.",
+    washington: "Write in the style of The Washington Post. Use clear, direct, and analytical prose. Maintain a pragmatic and objective tone, with an emphasis on accountability and political implications. Focus on factual clarity and well-structured reporting, allowing the significance of the facts to drive the narrative. Do not repeat the narrative in subsequent sections."
+};
+
+// Document structure prompt
+const structurePrompt = `Analyze the topic "{topic}" and create a comprehensive document structure with:
     1. Main sections (3-5 major themes)
     2. Subsections for each main section (3-5 subtopics per theme)
     3. Specific prompts to generate content for each subsection
@@ -30,22 +37,16 @@ const prompts = [
     # Section Title
     ## Subsection Title
     ### Prompt: [specific instruction for this subsection]
-    Include all necessary prompts to fully cover the topic.`
-];
+    Include all necessary prompts to fully cover the topic.`;
 
-// Prompt display section
-const promptDisplay = document.createElement('div');
-promptDisplay.id = 'prompt-display';
-promptDisplay.style.margin = '20px 0';
-promptDisplay.style.padding = '15px';
-promptDisplay.style.backgroundColor = '#f8f9fa';
-promptDisplay.style.borderRadius = '5px';
-promptDisplay.style.borderLeft = '4px solid #3498db';
-promptDisplay.innerHTML = `
-    <h3 style="margin-top: 0; color: #2c3e50;">Current Prompt</h3>
-    <div id="current-prompt" style="font-family: monospace; white-space: pre-wrap;"></div>
-`;
-document.querySelector('.output-section').insertBefore(promptDisplay, document.querySelector('.step-indicator'));
+let currentStyle = "default";
+
+// Move status message to where prompt display was
+const statusContainer = document.createElement('div');
+statusContainer.id = 'status-container';
+statusContainer.style.margin = '20px 0';
+document.querySelector('.output-section').insertBefore(statusContainer, document.querySelector('.step-indicator'));
+statusContainer.appendChild(statusMessage);
 
 // Function to make API calls to Gemini with enhanced retry logic
 async function callGeminiAPI(prompt, topic, retryCount = 0) {
@@ -137,9 +138,11 @@ function updateStepUI(step) {
     // Mark current step as active
     document.getElementById(`step-${step}`).classList.add('active');
     
-    // Update progress bar
-    const progressPercentage = ((step - 1) / 2) * 100;
-    progressBar.style.width = `${progressPercentage}%`;
+    // Update progress bar for step transitions
+    const stepPercentage = ((step - 1) / 2) * 100;
+    progressBar.style.width = `${stepPercentage}%`;
+    progressBar.setAttribute('data-step', step);
+    progressBar.setAttribute('data-step-percentage', stepPercentage);
 }
 
 // Function to parse and execute document prompts
@@ -179,9 +182,23 @@ async function executeDocumentPrompts(topic, structure) {
         // Execute prompt when we hit next section or end
         if ((line.startsWith('# ') || line.startsWith('## ') || !line.trim()) && currentPrompt) {
             processedPrompts++;
-            const progress = Math.round((processedPrompts / totalPrompts) * 100);
-            statusMessage.textContent = `Processing (${progress}%): ${currentSection}`;
-            const result = await callGeminiAPI(currentPrompt, topic);
+            const promptProgress = Math.round((processedPrompts / totalPrompts) * 100);
+            const currentStep = parseInt(progressBar.getAttribute('data-step'));
+            const stepPercentage = parseInt(progressBar.getAttribute('data-step-percentage'));
+            
+            // Calculate smooth progress from 0-100%
+            const overallProgress = currentStep === 1 
+                ? Math.round(promptProgress * 0.5)
+                : Math.round(50 + (promptProgress * 0.5));
+            
+            progressBar.style.width = `${overallProgress}%`;
+            progressBar.textContent = `${overallProgress}%`;
+            statusMessage.textContent = `Step ${currentStep}/2 (${overallProgress}%): ${currentSection}`;
+            let fullContentPrompt = currentPrompt;
+            if (stylePrompts[currentStyle]) {
+                fullContentPrompt = stylePrompts[currentStyle] + "\n\n" + currentPrompt;
+            }
+            const result = await callGeminiAPI(fullContentPrompt, topic);
             documentContent += result + '\n';
             markdownOutput.innerHTML = marked.parse(documentContent);
             currentPrompt = '';
@@ -223,7 +240,11 @@ async function generateDocument() {
         updateStepUI(currentStep);
         statusMessage.textContent = 'Creating document structure...';
         
-        const structure = await callGeminiAPI(prompts[0], topic);
+        let fullPrompt = structurePrompt;
+        if (stylePrompts[currentStyle]) {
+            fullPrompt = stylePrompts[currentStyle] + "\n\n" + structurePrompt;
+        }
+        const structure = await callGeminiAPI(fullPrompt, topic);
         markdownOutput.innerHTML = marked.parse(structure);
         
         // Step 2: Execute all prompts sequentially
@@ -259,6 +280,16 @@ function showError(message) {
     errorMessage.textContent = message;
     errorMessage.style.display = 'block';
 }
+
+// Style button event listeners
+document.querySelectorAll('.style-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Update active button
+        document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentStyle = btn.dataset.style;
+    });
+});
 
 // Event listeners
 generateBtn.addEventListener('click', generateDocument);
@@ -382,6 +413,6 @@ topicInput.addEventListener('input', () => {
     if (topicInput.value.trim() !== '') {
         statusMessage.textContent = 'Ready to generate.';
     } else {
-        statusMessage.textContent = 'Enter a description to begin.';
+        statusMessage.textContent = 'Progress will appear here after you enter a topic.';
     }
 });
