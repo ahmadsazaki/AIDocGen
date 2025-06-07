@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1 class="app-title">AI Document Generator</h1>
+            <p class="app-description">Enter a topic or description to generate a professionally formatted document with comprehensive structure and content.</p>
+        </header>
+        
+        <section class="input-section">
+            <h2 class="section-title">What would you like to create?</h2>
+            <div class="input-form">
+                <textarea id="topic-description" placeholder="Example: A comprehensive guide to sustainable urban planning, focusing on green infrastructure, renewable energy integration, and community engagement strategies."></textarea>
+                
+                <div class="error-message" id="error-message"></div>
+                
+                <div class="button-container">
+                    <button id="generate-btn">Generate Document</button>
+                    <p class="status" id="status-message">Enter a description to begin.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section class="output-section">
+            <h2 class="section-title">Generated Document</h2>
+            
+            <div class="step-indicator">
+                <div class="step active" id="step-1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Create Structure</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step" id="step-2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Generate Content</div>
+                </div>
+            </div>
+            
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            
+            <div class="document-preview" id="document-preview">
+                <div class="loading" id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+                <div class="markdown-output" id="markdown-output">
+                    <h1>Generated Document</h1>
+                    <h2>Structure Preview</h2>
+                    <p>Your professionally formatted document will appear here.</p>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="copy-btn" disabled>Copy to Clipboard</button>
+                <div class="download-container">
+                    <input type="text" id="filename-input" placeholder="document.html" disabled>
+                    <button id="download-btn" disabled>Save as HTML</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
