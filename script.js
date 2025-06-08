@@ -27,10 +27,10 @@ const stylePrompts = {
 
 // Rewrite prompts for full document restructuring
 const rewritePrompts = {
-    nytimes: "Rewrite this entire document in New York Times style. Reorganize content for better narrative flow, applying consistent voice and tone throughout. Structure as a cohesive article with:\n1. A compelling lede paragraph\n2. Clear section transitions\n3. Proper contextual framing\n4. Authoritative, nuanced analysis\nMaintain all key information while improving presentation and readability.",
-    guardian: "Rewrite this document in Guardian style. Transform into a cohesive piece with:\n1. Engaging, conversational tone\n2. Light British wit where appropriate\n3. Progressive perspective\n4. Clear section flow\nEnsure it reads as one unified article rather than separate sections, while preserving all essential content.",
-    washington: "Restructure this document in Washington Post style. Create a cohesive analysis with:\n1. Clear, direct prose\n2. Strong factual foundation\n3. Political/policy context\n4. Smooth transitions\nMaintain accountability focus and pragmatic tone throughout the entire piece.",
-    wsj: "Rewrite this document in Wall Street Journal style. Transform into a cohesive business-oriented piece with:\n1. Concise, factual language\n2. Economic/financial context\n3. Clear section flow\n4. Professional tone\nEnsure consistent style throughout while preserving all key information and data points."
+    nytimes: "Write this entire document in New York Times style. Reorganize content for better narrative flow, applying consistent voice and tone throughout. Structure as a cohesive article with:\n1. A compelling lede paragraph\n2. Clear section transitions\n3. Proper contextual framing\n4. Authoritative, nuanced analysis\nMaintain all key information while improving presentation and readability.",
+    guardian: "Write this document in Guardian style. Transform into a cohesive piece with:\n1. Engaging, conversational tone\n2. Light British wit where appropriate\n3. Progressive perspective\n4. Clear section flow\nEnsure it reads as one unified article rather than separate sections, while preserving all essential content.",
+    washington: "Write this document in Washington Post style. Create a cohesive analysis with:\n1. Clear, direct prose\n2. Strong factual foundation\n3. Political/policy context\n4. Smooth transitions\nMaintain accountability focus and pragmatic tone throughout the entire piece.",
+    wsj: "Write this document in Wall Street Journal style. Transform into a cohesive business-oriented piece with:\n1. Concise, factual language\n2. Economic/financial context\n3. Clear section flow\n4. Professional tone\nEnsure consistent style throughout while preserving all key information and data points."
 };
 
 // Document structure prompt
