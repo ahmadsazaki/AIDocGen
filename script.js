@@ -133,12 +133,11 @@ async function callGeminiAPI(prompt, topic, retryCount = 0) {
 // Step indicators
 const step1 = document.getElementById('step-1');
 const step2 = document.getElementById('step-2');
-const step3 = document.getElementById('step-3');
 
 // Function to update UI based on steps
 function updateStepUI(step) {
     // Reset all steps
-    [step1, step2, step3].forEach(s => {
+    [step1, step2].forEach(s => {
         s.classList.remove('active', 'completed');
     });
     
@@ -151,7 +150,7 @@ function updateStepUI(step) {
     document.getElementById(`step-${step}`).classList.add('active');
     
     // Update progress bar for step transitions
-    const stepPercentage = ((step - 1) / 3) * 100;
+    const stepPercentage = ((step - 1) / 2) * 100;
     progressBar.style.width = `${stepPercentage}%`;
     progressBar.setAttribute('data-step', step);
     progressBar.setAttribute('data-step-percentage', stepPercentage);
@@ -173,19 +172,17 @@ async function executeDocumentPrompts(topic, structure) {
     // For non-default styles, track covered topics to avoid repetition
     const coveredTopics = new Set();
     
+    // Track all section headers to detect duplicates
+    const sectionTracker = {};
+    
     // Generate default filename from first few words of topic
     const defaultFilename = topic.split(/\s+/).slice(0, 3).join('-').toLowerCase() + '.html';
     document.getElementById('filename-input').value = defaultFilename;
     
     for (const line of lines) {
-        if (line.startsWith('# ')) {
-            // Main section
+        if (line.startsWith('# ') || line.startsWith('## ')) {
+            // Track section without adding to content yet
             currentSection = line;
-            documentContent += '\n\n' + line + '\n';
-        } else if (line.startsWith('## ')) {
-            // Subsection
-            currentSection = line;
-            documentContent += '\n\n' + line + '\n';
         } else if (line.startsWith('### Prompt: ')) {
             // Start of prompt
             currentPrompt = line.replace('### Prompt: ', '');
@@ -195,21 +192,28 @@ async function executeDocumentPrompts(topic, structure) {
             currentPrompt += '\n' + line;
         }
         
-        // Execute prompt when we hit next section or end
-        if ((line.startsWith('# ') || line.startsWith('## ') || !line.trim()) && currentPrompt) {
-            processedPrompts++;
-            const promptProgress = Math.round((processedPrompts / totalPrompts) * 100);
-            const currentStep = parseInt(progressBar.getAttribute('data-step'));
-            const stepPercentage = parseInt(progressBar.getAttribute('data-step-percentage'));
+            // Execute prompt when we hit next section or end
+            if ((line.startsWith('# ') || line.startsWith('## ') || !line.trim()) && currentPrompt) {
+                processedPrompts++;
+                const promptProgress = Math.round((processedPrompts / totalPrompts) * 100);
+                const currentStep = parseInt(progressBar.getAttribute('data-step'));
+                const stepPercentage = parseInt(progressBar.getAttribute('data-step-percentage'));
+                
+                // Calculate smooth progress from 0-100%
+                const overallProgress = currentStep === 1 
+                    ? Math.round(promptProgress * 0.5)
+                    : Math.round(50 + (promptProgress * 0.5));
+                
+                progressBar.style.width = `${overallProgress}%`;
+                progressBar.textContent = `${overallProgress}%`;
+                statusMessage.textContent = `Step ${currentStep}/2 (${overallProgress}%): ${currentSection}`;
+                
+            // Handle duplicate section headers for all styles
+            if (sectionTracker[currentSection]) {
+                currentSection = currentSection.replace('(continued)', '') + ' (continued)';
+            }
+            sectionTracker[currentSection] = true;
             
-            // Calculate smooth progress from 0-100%
-            const overallProgress = currentStep === 1 
-                ? Math.round(promptProgress * 0.5)
-                : Math.round(50 + (promptProgress * 0.5));
-            
-            progressBar.style.width = `${overallProgress}%`;
-            progressBar.textContent = `${overallProgress}%`;
-            statusMessage.textContent = `Step ${currentStep}/2 (${overallProgress}%): ${currentSection}`;
             let fullContentPrompt = currentPrompt;
             
             if (currentStyle !== 'default') {
@@ -229,6 +233,11 @@ async function executeDocumentPrompts(topic, structure) {
                 if (stylePrompts[currentStyle]) {
                     fullContentPrompt = stylePrompts[currentStyle] + "\n\n" + currentPrompt;
                 }
+            }
+            
+            // Ensure the section header is included in the document
+            if (line.startsWith('# ') || line.startsWith('## ')) {
+                documentContent += '\n\n' + currentSection + '\n';
             }
             
             const result = await callGeminiAPI(fullContentPrompt, topic);
@@ -301,8 +310,6 @@ async function generateDocument() {
         
         // For default style only, do final rewrite if needed
         if (currentStyle === 'default' && rewritePrompts[currentStyle]) {
-            currentStep = 3;
-            updateStepUI(currentStep);
             statusMessage.textContent = 'Finalizing document...';
             documentContent = await rewriteDocument(documentContent, currentStyle);
             markdownOutput.innerHTML = marked.parse(documentContent);
