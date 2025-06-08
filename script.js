@@ -16,10 +16,6 @@ const errorMessage = document.getElementById('error-message');
 let documentContent = '';
 let currentStep = 1;
 
-// Step indicators
-const step1 = document.getElementById('step-1');
-const step2 = document.getElementById('step-2');
-
 // Style prompts
 const stylePrompts = {
     default: "",
@@ -27,6 +23,14 @@ const stylePrompts = {
     guardian: "Write in the style of The Guardian. Use a conversational, engaging tone with occasional very light British wit and a progressive perspective. Favor clarity and accessibility over formality, and where appropriate, adopt an advocacy-driven or questioning stance. Avoid excessive institutional voice. Do not repeat the narrative in subsequent sections.",
     washington: "Write in the style of The Washington Post. Use clear, direct, and analytical prose. Maintain a pragmatic and objective tone, with an emphasis on accountability and political implications. Focus on factual clarity and well-structured reporting, allowing the significance of the facts to drive the narrative. Do not repeat the narrative in subsequent sections.",
     wsj: "Write in the style of The Wall Street Journal. Use concise, business-oriented language with a focus on facts and analysis. Maintain a professional tone that emphasizes financial and economic implications. Prioritize clear, direct reporting with minimal embellishment. Include relevant data points and market context where appropriate. Do not repeat the narrative in subsequent sections."
+};
+
+// Rewrite prompts for full document restructuring
+const rewritePrompts = {
+    nytimes: "Rewrite this entire document in New York Times style. Reorganize content for better narrative flow, applying consistent voice and tone throughout. Structure as a cohesive article with:\n1. A compelling lede paragraph\n2. Clear section transitions\n3. Proper contextual framing\n4. Authoritative, nuanced analysis\nMaintain all key information while improving presentation and readability.",
+    guardian: "Rewrite this document in Guardian style. Transform into a cohesive piece with:\n1. Engaging, conversational tone\n2. Light British wit where appropriate\n3. Progressive perspective\n4. Clear section flow\nEnsure it reads as one unified article rather than separate sections, while preserving all essential content.",
+    washington: "Restructure this document in Washington Post style. Create a cohesive analysis with:\n1. Clear, direct prose\n2. Strong factual foundation\n3. Political/policy context\n4. Smooth transitions\nMaintain accountability focus and pragmatic tone throughout the entire piece.",
+    wsj: "Rewrite this document in Wall Street Journal style. Transform into a cohesive business-oriented piece with:\n1. Concise, factual language\n2. Economic/financial context\n3. Clear section flow\n4. Professional tone\nEnsure consistent style throughout while preserving all key information and data points."
 };
 
 // Document structure prompt
@@ -42,12 +46,14 @@ const structurePrompt = `Analyze the topic "{topic}" and create a comprehensive 
 
 let currentStyle = "default";
 
-// Move status message to where prompt display was
-const statusContainer = document.createElement('div');
-statusContainer.id = 'status-container';
-statusContainer.style.margin = '20px 0';
-document.querySelector('.output-section').insertBefore(statusContainer, document.querySelector('.step-indicator'));
-statusContainer.appendChild(statusMessage);
+// Move status message to where prompt display was - only if not already moved
+if (!document.getElementById('status-container')) {
+    const statusContainer = document.createElement('div');
+    statusContainer.id = 'status-container';
+    statusContainer.style.margin = '20px 0';
+    document.querySelector('.output-section').insertBefore(statusContainer, document.querySelector('.step-indicator'));
+    statusContainer.appendChild(statusMessage);
+}
 
 // Function to make API calls to Gemini with enhanced retry logic
 async function callGeminiAPI(prompt, topic, retryCount = 0) {
@@ -124,10 +130,15 @@ async function callGeminiAPI(prompt, topic, retryCount = 0) {
     }
 }
 
+// Step indicators
+const step1 = document.getElementById('step-1');
+const step2 = document.getElementById('step-2');
+const step3 = document.getElementById('step-3');
+
 // Function to update UI based on steps
 function updateStepUI(step) {
     // Reset all steps
-    [step1, step2].forEach(s => {
+    [step1, step2, step3].forEach(s => {
         s.classList.remove('active', 'completed');
     });
     
@@ -140,7 +151,7 @@ function updateStepUI(step) {
     document.getElementById(`step-${step}`).classList.add('active');
     
     // Update progress bar for step transitions
-    const stepPercentage = ((step - 1) / 2) * 100;
+    const stepPercentage = ((step - 1) / 3) * 100;
     progressBar.style.width = `${stepPercentage}%`;
     progressBar.setAttribute('data-step', step);
     progressBar.setAttribute('data-step-percentage', stepPercentage);
@@ -153,10 +164,14 @@ async function executeDocumentPrompts(topic, structure) {
     let currentPrompt = '';
     let inPrompt = false;
     let documentContent = '';
+    let documentContext = '';
     
     // Count total prompts
     const totalPrompts = lines.filter(line => line.startsWith('### Prompt: ')).length;
     let processedPrompts = 0;
+    
+    // For non-default styles, track covered topics to avoid repetition
+    const coveredTopics = new Set();
     
     // Generate default filename from first few words of topic
     const defaultFilename = topic.split(/\s+/).slice(0, 3).join('-').toLowerCase() + '.html';
@@ -196,9 +211,26 @@ async function executeDocumentPrompts(topic, structure) {
             progressBar.textContent = `${overallProgress}%`;
             statusMessage.textContent = `Step ${currentStep}/2 (${overallProgress}%): ${currentSection}`;
             let fullContentPrompt = currentPrompt;
-            if (stylePrompts[currentStyle]) {
-                fullContentPrompt = stylePrompts[currentStyle] + "\n\n" + currentPrompt;
+            
+            if (currentStyle !== 'default') {
+                // For non-default styles, include context and style guidelines
+                fullContentPrompt = `${stylePrompts[currentStyle]}\n\n`
+                    + `Previous Sections Context:\n${documentContent}\n\n`
+                    + `Generate the next section about: ${currentSection}\n`
+                    + `1. Flow naturally from previous content\n`
+                    + `2. Maintain consistent ${currentStyle} voice/tone\n`
+                    + `3. Avoid repeating: ${Array.from(coveredTopics).join(', ')}\n\n`
+                    + `Content Requirements:\n${currentPrompt}`;
+                
+                // Track covered topics
+                coveredTopics.add(currentSection.replace(/^[#]+/, '').trim());
+            } else {
+                // Default style keeps original prompt
+                if (stylePrompts[currentStyle]) {
+                    fullContentPrompt = stylePrompts[currentStyle] + "\n\n" + currentPrompt;
+                }
             }
+            
             const result = await callGeminiAPI(fullContentPrompt, topic);
             documentContent += result + '\n';
             markdownOutput.innerHTML = marked.parse(documentContent);
@@ -211,6 +243,20 @@ async function executeDocumentPrompts(topic, structure) {
     }
     
     return documentContent;
+}
+
+// Function to rewrite document in selected style
+async function rewriteDocument(content, style) {
+    if (style === 'default' || !rewritePrompts[style]) {
+        return content; // No rewriting for default style
+    }
+
+    statusMessage.textContent = 'Rewriting document in selected style...';
+    const rewritten = await callGeminiAPI(
+        rewritePrompts[style] + "\n\nDocument to rewrite:\n" + content,
+        ''
+    );
+    return rewritten;
 }
 
 // Function to generate the document
@@ -252,6 +298,15 @@ async function generateDocument() {
         currentStep = 2;
         updateStepUI(currentStep);
         documentContent = await executeDocumentPrompts(topic, structure);
+        
+        // For default style only, do final rewrite if needed
+        if (currentStyle === 'default' && rewritePrompts[currentStyle]) {
+            currentStep = 3;
+            updateStepUI(currentStep);
+            statusMessage.textContent = 'Finalizing document...';
+            documentContent = await rewriteDocument(documentContent, currentStyle);
+            markdownOutput.innerHTML = marked.parse(documentContent);
+        }
         
         // Enable action buttons
         copyBtn.disabled = false;
