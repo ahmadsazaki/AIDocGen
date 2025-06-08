@@ -175,11 +175,14 @@ async function executeDocumentPrompts(topic, structure) {
     // Track all section headers to detect duplicates
     const sectionTracker = {};
     
-    // Generate default filename from first few words of topic
-    const defaultFilename = topic.split(/\s+/).slice(0, 3).join('-').toLowerCase() + '.html';
-    document.getElementById('filename-input').value = defaultFilename;
-    
-    for (const line of lines) {
+        // Generate default filename from first few words of topic
+        const defaultFilename = topic.split(/\s+/).slice(0, 3).join('-').toLowerCase() + '.html';
+        document.getElementById('filename-input').value = defaultFilename;
+        
+        // Add document title at beginning
+        documentContent = `# ${topic}\n\n`;
+        
+        for (const line of lines) {
         if (line.startsWith('# ') || line.startsWith('## ')) {
             // Track section without adding to content yet
             currentSection = line;
