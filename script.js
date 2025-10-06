@@ -27,6 +27,7 @@ const statusMessage = document.getElementById('status-message');
 const loading = document.getElementById('loading');
 const loadingPercentage = document.getElementById('loading-percentage');
 const markdownOutput = document.getElementById('markdown-output');
+const startNewBtn = document.getElementById('start-new-btn');
 const copyBtn = document.getElementById('copy-btn');
 const downloadBtn = document.getElementById('download-btn');
 const errorMessage = document.getElementById('error-message');
@@ -424,6 +425,11 @@ function hideOutputSectionOnLoad() {
 generateBtn.addEventListener('click', () => {
     hideAllExceptOutputSection();
     generateDocument();
+});
+
+// Start New button functionality
+startNewBtn.addEventListener('click', () => {
+    location.reload();
 });
 
 // Copy to clipboard functionality

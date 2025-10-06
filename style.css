@@ -1,3 +1,8 @@
+/* Mobile-First CSS Reset and Base Styles */
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     line-height: 1.6;
@@ -6,12 +11,14 @@ body {
     padding: 0;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .container {
-    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
-    padding: 40px 20px;
+    padding: 20px 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -19,7 +26,6 @@ body {
 
 .input-section-container {
     width: 100%;
-    max-width: 1200px;
     margin: 0 auto;
 }
 
@@ -83,10 +89,10 @@ body {
 }
 
 textarea {
-    height: 80px;
-    min-height: 80px;
+    height: 100px;
+    min-height: 120px;
     margin-bottom: 0;
-    padding: 16px;
+    padding: 10px;
     border: 1px solid #d2d2d7;
     border-radius: 12px;
     font-family: inherit;
@@ -590,6 +596,11 @@ button:disabled {
     text-decoration: underline;
 }
 
+/* Textarea Container */
+.textarea-container {
+    width: 100%;
+}
+
 /* Settings Button */
 .settings-btn {
     background: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
@@ -602,11 +613,347 @@ button:disabled {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 50px;
+    min-height: 50px;
 }
 
 .settings-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
+}
+
+/* Enhanced Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px 12px;
+    }
+    
+    .app-header {
+        margin-bottom: 40px;
+    }
+    
+    .app-title {
+        font-size: clamp(1.8rem, 8vw, 2.5rem);
+    }
+    
+    .app-description {
+        font-size: 1rem;
+        max-width: 100%;
+        padding: 0 16px;
+    }
+    
+    .input-section, .output-section {
+        padding: 24px 20px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+    }
+    
+    textarea {
+        font-size: 1rem;
+        padding: 14px;
+        min-height: 100px;
+    }
+    
+    .style-cards {
+        gap: 12px;
+    }
+    
+    .style-card {
+        width: 80px;
+        height: 80px;
+        padding: 8px;
+    }
+    
+    .card-text {
+        font-size: 0.9rem;
+    }
+    
+    button {
+        width: 100% !important;
+        padding: 14px 20px;
+        font-size: 1rem;
+    }
+    
+    .button-container > div {
+        width: 100%;
+    }
+    
+    .button-container > div > div {
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+    
+    .settings-btn {
+        width: 100% !important;
+        height: 50px;
+        font-size: 1.1rem;
+    }
+    
+    .step-indicator {
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .step {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        width: 100%;
+    }
+    
+    .step-connector {
+        display: none;
+    }
+    
+    .step-label {
+        font-size: 0.9rem;
+    }
+    
+    .document-preview {
+        padding: 20px;
+        min-height: 300px;
+        max-height: 400px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    
+    .download-container {
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+    
+    #filename-input {
+        width: 100%;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10px;
+        border-radius: 16px;
+    }
+    
+    .modal-header {
+        padding: 24px 20px 0;
+    }
+    
+    .modal-body {
+        padding: 0 20px;
+    }
+    
+    .modal-footer {
+        padding: 20px 20px 24px;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .btn-primary, .btn-secondary {
+        width: 100%;
+    }
+    
+    .loading {
+        height: 150px;
+    }
+    
+    .loading-percentage {
+        font-size: 1.1rem;
+    }
+}
+
+/* Tablet Styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .container {
+        padding: 30px 20px;
+    }
+    
+    .input-section, .output-section {
+        padding: 32px 28px;
+    }
+    
+    .style-cards {
+        gap: 14px;
+    }
+    
+    .style-card {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .button-container > div > div {
+        gap: 16px;
+    }
+    
+    button {
+        width: auto;
+        min-width: 200px;
+    }
+    
+    .settings-btn {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+/* Desktop Enhancements */
+@media (min-width: 1025px) {
+    .container {
+        max-width: 1200px;
+        padding: 40px 20px;
+    }
+    
+    .input-section-container {
+        max-width: 1200px;
+    }
+    
+    .input-section, .output-section {
+        max-width: 1200px;
+    }
+    
+    textarea {
+        max-width: 800px;
+        margin: 0 auto;
+        display: block;
+    }
+    
+    .button-container > div > div {
+        gap: 16px;
+    }
+    
+    button {
+        width: auto;
+        min-width: 200px;
+    }
+    
+    .settings-btn {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .style-card:hover {
+        transform: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .input-section:hover, .output-section:hover {
+        transform: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+    
+    button:hover {
+        transform: none;
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    }
+    
+    .settings-btn:hover {
+        transform: none;
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    }
+    
+    /* Enhanced touch targets */
+    .style-card {
+        min-height: 80px;
+        min-width: 80px;
+    }
+    
+    button, .settings-btn {
+        min-height: 44px;
+    }
+    
+    .step-number {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* High DPI/Retina Display Optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .logo-card {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .spinner {
+        animation: none;
+        border: 3px solid #007AFF;
+        border-radius: 50%;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        color: #ffffff;
+    }
+    
+    .input-section, .output-section {
+        background: rgba(40, 40, 40, 0.95);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .section-title {
+        color: #ffffff;
+    }
+    
+    textarea {
+        background: rgba(50, 50, 50, 0.8);
+        border-color: #555;
+        color: #ffffff;
+    }
+    
+    textarea:focus {
+        background: rgba(60, 60, 60, 0.9);
+    }
+    
+    .style-label {
+        color: #ffffff;
+    }
+    
+    .card-text {
+        color: #ffffff;
+    }
+    
+    .status {
+        background: rgba(50, 50, 50, 0.8);
+        color: #ffffff;
+    }
+    
+    .document-preview {
+        background: rgba(50, 50, 50, 0.8);
+        color: #ffffff;
+    }
+    
+    .markdown-output h1,
+    .markdown-output h3 {
+        color: #ffffff;
+    }
+    
+    .markdown-output blockquote {
+        background: rgba(0, 122, 255, 0.1);
+    }
 }
 
 /* Button Variants */
