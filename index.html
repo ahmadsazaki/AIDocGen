@@ -8,35 +8,62 @@
 </head>
 <body>
     <div class="container">
-        <header class="app-header">
-            <h1 class="app-title">AI Document Generator</h1>
-            <p class="app-description" style="font-size: 24px; font-style: italic;">Create a professionally crafted and well-formatted document.</p>
-        </header>
         
-        <section class="input-section">
-            <h2 class="section-title">What would you like to create?</h2>
-            <div class="input-form">
-                <textarea id="topic-description" placeholder="Example: Generate a comprehensive and well-structured overview of Imam Al-Ghazali."></textarea>
-                
-                <div class="error-message" id="error-message"></div>
-                
-                <div class="button-container">
+        
+        <div class="input-section-container">
+            <section class="input-section">
+                <h3 class="section-title">Create a professionally crafted and well-formatted document.</h3>
+                <div class="input-form">
+                    <div style="display: flex; justify-content: center;">
+                        <textarea id="topic-description" placeholder="Example: Generate a comprehensive and well-structured overview of Imam Al-Ghazali." style="width:600px;"></textarea>
+                    </div>
+                    
+                    <div class="error-message" id="error-message"></div>
                     <div class="style-selector">
-                        <span class="style-label">Select writing style: </span>
-                        <div class="style-buttons">
-                            <button class="style-btn active" data-style="default">Default</button>
-                            <button class="style-btn" data-style="nytimes">🗽 NY Times</button>
-                            <button class="style-btn" data-style="guardian">🇬🇧 The Guardian</button>
-                            <button class="style-btn" data-style="washington">🏛️ Washington Post</button>
-                            <button class="style-btn" data-style="wsj">📈 Wall Street Journal</button>
+                            <span class="style-label">Select writing style: </span> </div>
+                    <div class="button-container">
+                        
+                        <div class="style-cards">
+                            <div class="style-card active" data-style="default">
+                                <div class="card-content">
+                                    <span class="card-text">Default</span>
+                                </div>
+                            </div>
+                            <div class="style-card" data-style="nytimes">
+                                <div class="card-content">
+                                    <img src="icons/NYT.jpg" alt="NY Times" class="logo-card">
+                                </div>
+                            </div>
+                            <div class="style-card" data-style="guardian">
+                                <div class="card-content">
+                                    <img src="icons/Guardian.png" alt="The Guardian" class="logo-card">
+                                </div>
+                            </div>
+                            <div class="style-card" data-style="washington">
+                                <div class="card-content">
+                                    <img src="icons/WashingtonPost.png" alt="Washington Post" class="logo-card">
+                                </div>
+                            </div>
+                            <div class="style-card" data-style="wsj">
+                                <div class="card-content">
+                                    <img src="icons/WSJ.png" alt="Wall Street Journal" class="logo-card">
+                                </div>
+                            </div>
+                        
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <button id="generate-btn" style="width: 300px;">Generate Document</button>
+                                <button id="settings-btn" class="settings-btn" title="AI Model Settings" style="width: 50px; height: 50px; font-size: 1.2rem;">
+                                    ⚙️
+                                </button>
+                            </div>
+                            <p class="status" id="status-message">Progress</p>
                         </div>
                     </div>
-                    <div></div>
-                    <button id="generate-btn">Generate Document</button>
-                    <p class="status" id="status-message">Progress</p>
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
         
         <section class="output-section">
             <h2 class="section-title">Generated Document</h2>
@@ -48,15 +75,12 @@
                 </div>
                 <div class="loading" id="loading" style="display: none;">
                     <div class="spinner"></div>
+                    <div class="loading-percentage" id="loading-percentage">0%</div>
                 </div>
                 <div class="step" id="step-2">
                     <div class="step-number">2</div>
                     <div class="step-label">Generate Content</div>
                 </div>
-            </div>
-            
-            <div class="progress-container" id="progress-container">
-                <div class="progress-bar" id="progress-bar"></div>
             </div>
             
             <div class="document-preview" id="document-preview">
@@ -94,6 +118,45 @@
             </div>
         </section>
     </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>AI Model Settings</h2>
+                <button id="settings-close" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label for="api-key-input">OpenRouter API Key:</label>
+                    <input type="password" id="api-key-input" placeholder="Enter your OpenRouter API key">
+                    <p class="setting-description">
+                        Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
+                    </p>
+                </div>
+                
+                <div class="setting-group">
+                    <label for="model-select">Select AI Models:</label>
+                    <select id="model-select" multiple size="6">
+                        <option value="openai/gpt-oss-20b:free">GPT OSS 20B (Free)</option>
+                        <option value="meta-llama/llama-3.3-8b-instruct:free">Llama 3.3 8B Instruct (Free)</option>
+                        <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="openai/gpt-4o">GPT-4o</option>
+                        <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
+                    </select>
+                    <p class="setting-description">
+                        Hold Ctrl/Cmd to select multiple models. Models will be tried in order.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="settings-cancel" class="btn-secondary">Cancel</button>
+                <button id="settings-save" class="btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
     <script src="script.js"></script>

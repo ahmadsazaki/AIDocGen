@@ -1,13 +1,31 @@
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const API_KEY = 'AIzaSyBEh9v0oNzm7wjN1n5vytdTNrImRlM40Go';
-const MODEL_NAME = 'gemini-2.0-flash';
+// API Configuration - OpenRouter with Fallback Models
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Default model hierarchy for fallback strategy (will be overridden by user settings)
+let OPENROUTER_MODELS = [
+    {
+        name: 'openai/gpt-oss-20b:free',
+        timeout: 30000, // 30 seconds
+        priority: 1
+    },
+    {
+        name: 'meta-llama/llama-3.3-8b-instruct:free',
+        timeout: 15000, // 15 seconds - faster model
+        priority: 2
+    }
+];
+
+// Current model index
+let currentModelIndex = 0; // Start with primary model
+
+// API key (will be set from user settings)
+let OPENROUTER_API_KEY = '';
 
 const topicInput = document.getElementById('topic-description');
 const generateBtn = document.getElementById('generate-btn');
 const statusMessage = document.getElementById('status-message');
-const progressContainer = document.getElementById('progress-container');
-const progressBar = document.getElementById('progress-bar');
 const loading = document.getElementById('loading');
+const loadingPercentage = document.getElementById('loading-percentage');
 const markdownOutput = document.getElementById('markdown-output');
 const copyBtn = document.getElementById('copy-btn');
 const downloadBtn = document.getElementById('download-btn');
@@ -55,79 +73,96 @@ if (!document.getElementById('status-container')) {
     statusContainer.appendChild(statusMessage);
 }
 
-// Function to make API calls to Gemini with enhanced retry logic
-async function callGeminiAPI(prompt, topic, retryCount = 0) {
-    // Throttle requests - only allow one at a time
-    if (window.activeRequest) {
-        await new Promise(resolve => {
-            const checkInterval = setInterval(() => {
-                if (!window.activeRequest) {
-                    clearInterval(checkInterval);
-                    resolve();
-                }
-            }, 500);
-        });
+// API Helper Functions with Sequential Fallback
+async function makeAPIRequest(prompt, retryCount = 0) {
+    // Check if API key is configured
+    if (!OPENROUTER_API_KEY) {
+        throw new Error('Please configure your OpenRouter API key in Settings first');
     }
     
-    window.activeRequest = true;
-    const content = {
-        contents: [{
-            parts: [{
-                text: prompt.replace(/{topic}/g, topic)
-            }]
-        }]
-    };
+    return await makeOpenRouterRequestWithFallback(prompt);
+}
+
+async function makeOpenRouterRequestWithFallback(prompt) {
+    // Check if API key is configured
+    if (!OPENROUTER_API_KEY) {
+        throw new Error('Please configure your OpenRouter API key in Settings first');
+    }
     
-    try {
-        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(content)
-        });
+    // Check if models are configured
+    if (!OPENROUTER_MODELS || OPENROUTER_MODELS.length === 0) {
+        throw new Error('Please select at least one model in Settings first');
+    }
+    
+    // Try OpenRouter models in sequence
+    for (let i = currentModelIndex; i < OPENROUTER_MODELS.length; i++) {
+        const model = OPENROUTER_MODELS[i];
+        console.log(`Trying model: ${model.name} (timeout: ${model.timeout}ms)`);
         
-        if (response.status === 429) {
-            if (retryCount < 3) {
-                const waitTime = Math.min(Math.pow(3, retryCount) * 2000, 30000);
-                statusMessage.textContent = `Rate limited - next try in ${waitTime/1000} seconds...`;
-                
-                // Show visual countdown
-                const countdownEl = document.createElement('div');
-                countdownEl.id = 'countdown';
-                countdownEl.style.marginTop = '10px';
-                countdownEl.style.fontWeight = 'bold';
-                statusMessage.parentNode.insertBefore(countdownEl, statusMessage.nextSibling);
-                
-                let remaining = waitTime/1000;
-                countdownEl.textContent = `${remaining}s remaining`;
-                const countdownInterval = setInterval(() => {
-                    remaining--;
-                    countdownEl.textContent = `${remaining}s remaining`;
-                    if (remaining <= 0) {
-                        clearInterval(countdownInterval);
-                        countdownEl.remove();
-                    }
-                }, 1000);
-                
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-                return callGeminiAPI(prompt, topic, retryCount + 1);
+        try {
+            const response = await Promise.race([
+                makeOpenRouterRequest(prompt, model.name),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error(`Model timeout: ${model.name}`)), model.timeout)
+                )
+            ]);
+            
+            // Success - update current model index for next request
+            currentModelIndex = i;
+            console.log(`Success with model: ${model.name}`);
+            return response;
+            
+        } catch (error) {
+            console.warn(`Model ${model.name} failed:`, error.message);
+            
+            // If this is the last OpenRouter model, throw error
+            if (i === OPENROUTER_MODELS.length - 1) {
+                throw new Error(`All OpenRouter models failed. Last error: ${error.message}`);
             }
-            throw new Error('API rate limit exceeded. Please try again in a few minutes.');
         }
-        
-        if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
-    } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        throw error;
-    } finally {
-        window.activeRequest = false;
     }
+    
+    throw new Error('No available OpenRouter models');
+}
+
+async function makeOpenRouterRequest(prompt, modelName) {
+    const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'AI Document Generator'
+        },
+        body: JSON.stringify({
+            model: modelName,
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 4000
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        let errorMessage = `OpenRouter API Error ${response.status}: ${errorData.error?.message || response.statusText}`;
+        
+        // Provide specific guidance for common errors
+        if (response.status === 404 && errorData.error?.message?.includes('No endpoints found matching your data policy')) {
+            errorMessage += '\n\nTo fix this:\n1. Go to https://openrouter.ai/settings/privacy\n2. Enable "Free model publication" in your privacy settings\n3. Save your settings and try again';
+        } else if (response.status === 401) {
+            errorMessage += '\n\nPlease check that your API key is correct and has not expired.';
+        }
+        
+        throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content?.trim();
 }
 
 // Step indicators
@@ -149,11 +184,9 @@ function updateStepUI(step) {
     // Mark current step as active
     document.getElementById(`step-${step}`).classList.add('active');
     
-    // Update progress bar for step transitions
+    // Update loading percentage for step transitions
     const stepPercentage = ((step - 1) / 2) * 100;
-    progressBar.style.width = `${stepPercentage}%`;
-    progressBar.setAttribute('data-step', step);
-    progressBar.setAttribute('data-step-percentage', stepPercentage);
+    loadingPercentage.textContent = `${stepPercentage}%`;
 }
 
 // Function to parse and execute document prompts
@@ -199,16 +232,13 @@ async function executeDocumentPrompts(topic, structure) {
             if ((line.startsWith('# ') || line.startsWith('## ') || !line.trim()) && currentPrompt) {
                 processedPrompts++;
                 const promptProgress = Math.round((processedPrompts / totalPrompts) * 100);
-                const currentStep = parseInt(progressBar.getAttribute('data-step'));
-                const stepPercentage = parseInt(progressBar.getAttribute('data-step-percentage'));
                 
                 // Calculate smooth progress from 0-100%
                 const overallProgress = currentStep === 1 
                     ? Math.round(promptProgress * 0.5)
                     : Math.round(50 + (promptProgress * 0.5));
                 
-                progressBar.style.width = `${overallProgress}%`;
-                progressBar.textContent = `${overallProgress}%`;
+                loadingPercentage.textContent = `${overallProgress}%`;
                 statusMessage.textContent = `Step ${currentStep}/2 (${overallProgress}%): ${currentSection}`;
                 
             // Handle duplicate section headers for all styles
@@ -243,7 +273,7 @@ async function executeDocumentPrompts(topic, structure) {
                 documentContent += '\n\n' + currentSection + '\n';
             }
             
-            const result = await callGeminiAPI(fullContentPrompt, topic);
+            const result = await makeAPIRequest(fullContentPrompt);
             documentContent += result + '\n';
             markdownOutput.innerHTML = marked.parse(documentContent);
             currentPrompt = '';
@@ -264,9 +294,8 @@ async function rewriteDocument(content, style) {
     }
 
     statusMessage.textContent = 'Rewriting document in selected style...';
-    const rewritten = await callGeminiAPI(
-        rewritePrompts[style] + "\n\nDocument to rewrite:\n" + content,
-        ''
+    const rewritten = await makeAPIRequest(
+        rewritePrompts[style] + "\n\nDocument to rewrite:\n" + content
     );
     return rewritten;
 }
@@ -291,7 +320,6 @@ async function generateDocument() {
     loading.style.display = 'flex';
     generateBtn.disabled = true;
     statusMessage.textContent = 'Generating document...';
-    progressContainer.style.display = 'block';
     
     try {
         // Step 1: Generate document structure with prompts
@@ -303,7 +331,7 @@ async function generateDocument() {
         if (stylePrompts[currentStyle]) {
             fullPrompt = stylePrompts[currentStyle] + "\n\n" + structurePrompt;
         }
-        const structure = await callGeminiAPI(fullPrompt, topic);
+        const structure = await makeAPIRequest(fullPrompt.replace(/{topic}/g, topic));
         markdownOutput.innerHTML = marked.parse(structure);
         
         // Step 2: Execute all prompts sequentially
@@ -347,18 +375,56 @@ function showError(message) {
     errorMessage.style.display = 'block';
 }
 
-// Style button event listeners
-document.querySelectorAll('.style-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Update active button
-        document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentStyle = btn.dataset.style;
+// Style card event listeners
+document.querySelectorAll('.style-card').forEach(card => {
+    card.addEventListener('click', () => {
+        // Update active card
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        currentStyle = card.dataset.style;
     });
 });
 
+// Function to hide all elements except output-section
+function hideAllExceptOutputSection() {
+    // Hide header if it exists
+    const appHeader = document.querySelector('.app-header');
+    if (appHeader) {
+        appHeader.style.display = 'none';
+    }
+    
+    // Hide input section container
+    const inputContainer = document.querySelector('.input-section-container');
+    if (inputContainer) {
+        inputContainer.style.display = 'none';
+    }
+    
+    // Show output section if it was hidden
+    const outputSection = document.querySelector('.output-section');
+    if (outputSection) {
+        outputSection.style.display = 'block';
+    }
+    
+    // Hide settings button
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.style.display = 'none';
+    }
+}
+
+// Function to hide output-section on page load
+function hideOutputSectionOnLoad() {
+    const outputSection = document.querySelector('.output-section');
+    if (outputSection) {
+        outputSection.style.display = 'none';
+    }
+}
+
 // Event listeners
-generateBtn.addEventListener('click', generateDocument);
+generateBtn.addEventListener('click', () => {
+    hideAllExceptOutputSection();
+    generateDocument();
+});
 
 // Copy to clipboard functionality
 copyBtn.addEventListener('click', () => {
@@ -482,3 +548,171 @@ topicInput.addEventListener('input', () => {
         statusMessage.textContent = 'Progress will appear here after you enter a topic.';
     }
 });
+
+// Settings Elements
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsClose = document.getElementById('settings-close');
+const settingsCancel = document.getElementById('settings-cancel');
+const settingsSave = document.getElementById('settings-save');
+const apiKeyInput = document.getElementById('api-key-input');
+const modelSelect = document.getElementById('model-select');
+
+// Event Listeners for Settings
+settingsBtn.addEventListener('click', openSettings);
+settingsClose.addEventListener('click', closeSettings);
+settingsCancel.addEventListener('click', closeSettings);
+settingsSave.addEventListener('click', saveSettings);
+
+// Load settings on startup
+loadSettings();
+
+// Hide output section on page load after DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hideOutputSectionOnLoad);
+} else {
+    hideOutputSectionOnLoad();
+}
+
+// Settings Functions
+function openSettings() {
+    // Load current settings into the form
+    const savedSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    
+    if (savedSettings.apiKey) {
+        apiKeyInput.value = savedSettings.apiKey;
+    } else {
+        apiKeyInput.value = '';
+    }
+    
+    if (savedSettings.selectedModels && Array.isArray(savedSettings.selectedModels)) {
+        // Clear all selections first
+        Array.from(modelSelect.options).forEach(option => {
+            option.selected = false;
+        });
+        
+        // Select the saved models
+        savedSettings.selectedModels.forEach(modelName => {
+            const option = Array.from(modelSelect.options).find(opt => opt.value === modelName);
+            if (option) {
+                option.selected = true;
+            }
+        });
+    } else {
+        // Default selection - first two free models
+        if (modelSelect.options.length > 0) {
+            modelSelect.options[0].selected = true;
+            if (modelSelect.options.length > 1) {
+                modelSelect.options[1].selected = true;
+            }
+        }
+    }
+    
+    settingsModal.classList.remove('hidden');
+}
+
+function closeSettings() {
+    settingsModal.classList.add('hidden');
+}
+
+function saveSettings() {
+    const settings = {
+        apiKey: apiKeyInput.value.trim(),
+        selectedModels: Array.from(modelSelect.selectedOptions).map(option => option.value)
+    };
+    
+    // Validate settings
+    if (!settings.apiKey) {
+        showError('Please enter an API key');
+        return;
+    }
+    
+    if (settings.selectedModels.length === 0) {
+        showError('Please select at least one model');
+        return;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('appSettings', JSON.stringify(settings));
+    
+    // Update the global API configuration
+    updateAPIConfiguration(settings);
+    
+    closeSettings();
+    showError('Settings saved successfully!', 'success');
+}
+
+function loadSettings() {
+    const savedSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    console.log('Loading settings from localStorage:', savedSettings);
+    
+    if (savedSettings.apiKey || savedSettings.selectedModels) {
+        updateAPIConfiguration(savedSettings);
+        console.log('Settings loaded successfully');
+    } else {
+        console.log('No saved settings found, using defaults');
+    }
+}
+
+function updateAPIConfiguration(settings) {
+    console.log('Updating API configuration with settings:', settings);
+    
+    // Update API key
+    if (settings.apiKey) {
+        OPENROUTER_API_KEY = settings.apiKey;
+        console.log('API key updated:', OPENROUTER_API_KEY ? 'Set' : 'Not set');
+    }
+    
+    // Update models list
+    if (settings.selectedModels && settings.selectedModels.length > 0) {
+        OPENROUTER_MODELS = settings.selectedModels.map((modelName, index) => ({
+            name: modelName,
+            timeout: index === 0 ? 30000 : 15000, // Primary model gets 30s, others 15s
+            priority: index + 1
+        }));
+        console.log('Models updated:', OPENROUTER_MODELS.length, 'models configured');
+    }
+    
+    // Reset current model index
+    currentModelIndex = 0;
+    console.log('Current API configuration:', {
+        hasApiKey: !!OPENROUTER_API_KEY,
+        modelsCount: OPENROUTER_MODELS.length,
+        currentModelIndex: currentModelIndex
+    });
+}
+
+// Helper function for success messages
+function displaySuccess(message) {
+    const successElement = document.createElement('div');
+    successElement.className = 'success-message';
+    successElement.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #28a745;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        z-index: 1000;
+        font-size: 0.9em;
+    `;
+    successElement.textContent = message;
+    document.body.appendChild(successElement);
+    
+    setTimeout(() => {
+        document.body.removeChild(successElement);
+    }, 3000);
+}
+
+// Update showError to handle success messages
+const originalShowError = showError;
+showError = function(message, type = 'error') {
+    if (type === 'success') {
+        displaySuccess(message);
+    } else {
+        originalShowError(message);
+    }
+};
